@@ -51,7 +51,7 @@ class RealtimeCoachClient(private val listener: Listener) {
         disconnect()
         connectAttemptId += 1
         val attemptId = connectAttemptId
-        listener.onStatusChanged("Connecting...")
+        listener.onStatusChanged("状态：连接中...")
         scheduleConnectionTimeout(attemptId)
 
         val request = Request.Builder()
@@ -63,10 +63,10 @@ class RealtimeCoachClient(private val listener: Listener) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 cancelConnectionTimeout()
                 isSocketConnected = true
-                listener.onStatusChanged("Connected")
+                listener.onStatusChanged("状态：已连接")
                 setupAudioOutput()
                 sendSessionUpdate(webSocket, instructions)
-                listener.onStatusChanged("Ready - hold to talk")
+                listener.onStatusChanged("状态：已就绪，按住说话")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -80,7 +80,7 @@ class RealtimeCoachClient(private val listener: Listener) {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 cancelConnectionTimeout()
                 isSocketConnected = false
-                listener.onStatusChanged("Disconnected")
+                listener.onStatusChanged("状态：已断开")
                 cleanupAudio()
                 clearUserTranscriptCache()
             }
@@ -101,7 +101,7 @@ class RealtimeCoachClient(private val listener: Listener) {
         isSocketConnected = false
         cleanupAudio()
         clearUserTranscriptCache()
-        webSocket?.close(1000, "Session closed")
+        webSocket?.close(1000, "用户结束会话")
         webSocket = null
     }
 
@@ -143,7 +143,7 @@ class RealtimeCoachClient(private val listener: Listener) {
 
         val responseRequested = socket.send(responseCreate.toString())
         if (responseRequested) {
-            listener.onStatusChanged("Thinking...")
+            listener.onStatusChanged("状态：思考中...")
         }
         return responseRequested
     }
@@ -157,10 +157,10 @@ class RealtimeCoachClient(private val listener: Listener) {
         ensureMicrophoneRecorder()
         return try {
             microphoneRecorder?.start()
-            listener.onStatusChanged("Listening...")
+            listener.onStatusChanged("状态：聆听中...")
             true
         } catch (t: Throwable) {
-            listener.onError("Failed to start microphone: ${t.message ?: "unknown error"}")
+            listener.onError("启动麦克风失败：${t.message ?: "未知错误"}")
             disconnect()
             false
         }
@@ -190,7 +190,7 @@ class RealtimeCoachClient(private val listener: Listener) {
 
         val responseSent = socket.send(buildAudioResponseCreateEvent().toString())
         if (responseSent) {
-            listener.onStatusChanged("Thinking...")
+            listener.onStatusChanged("状态：思考中...")
         }
         return responseSent
     }
@@ -253,10 +253,10 @@ class RealtimeCoachClient(private val listener: Listener) {
         }
 
         when (event.optString("type")) {
-            "session.created" -> listener.onStatusChanged("Session created")
-            "session.updated" -> listener.onStatusChanged("Ready - hold to talk")
-            "input_audio_buffer.speech_started" -> listener.onStatusChanged("Listening...")
-            "input_audio_buffer.speech_stopped" -> listener.onStatusChanged("Thinking...")
+            "session.created" -> listener.onStatusChanged("状态：会话已创建")
+            "session.updated" -> listener.onStatusChanged("状态：已就绪，按住说话")
+            "input_audio_buffer.speech_started" -> listener.onStatusChanged("状态：聆听中...")
+            "input_audio_buffer.speech_stopped" -> listener.onStatusChanged("状态：思考中...")
 
             "conversation.item.input_audio_transcription.text",
             "conversation.item.input_audio_transcription.delta" -> {
@@ -493,8 +493,7 @@ class RealtimeCoachClient(private val listener: Listener) {
             }
 
             listener.onError(
-                "Connection timed out after ${CONNECTION_TIMEOUT_MS / 1000}s. " +
-                    "Please verify your API key, network, and realtime endpoint."
+                "连接超时（${CONNECTION_TIMEOUT_MS / 1000} 秒）。请检查 API Key、网络和实时接口地址。"
             )
             disconnect()
         }
@@ -509,7 +508,7 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     private fun buildConnectionFailureMessage(t: Throwable, response: Response?): String {
-        val throwableMessage = t.message ?: "unknown error"
+        val throwableMessage = t.message ?: "未知错误"
         val responseDetails = response?.let { resp ->
             val bodySnippet = try {
                 resp.body?.string().orEmpty().trim()
@@ -530,9 +529,9 @@ class RealtimeCoachClient(private val listener: Listener) {
         }
 
         return if (responseDetails.isNullOrBlank()) {
-            "Realtime connection failed: $throwableMessage"
+            "实时连接失败：$throwableMessage"
         } else {
-            "Realtime connection failed: $throwableMessage ($responseDetails)"
+            "实时连接失败：$throwableMessage（$responseDetails）"
         }
     }
 
@@ -541,3 +540,4 @@ class RealtimeCoachClient(private val listener: Listener) {
         private const val CONNECTION_TIMEOUT_MS = 15_000L
     }
 }
+

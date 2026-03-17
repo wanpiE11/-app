@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
                     startSession(instructions)
                 }
             } else {
-                Toast.makeText(this, "Microphone permission is required.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_microphone_permission_required), Toast.LENGTH_SHORT).show()
                 renderDisconnectedState()
             }
         }
@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         binding.disconnectButton.setOnClickListener {
             releasePushToTalkIfNeeded(createResponse = false)
             coachClient.disconnect()
-            appendSystemLine("Session ended by user.")
+            appendSystemLine(getString(R.string.system_session_ended_by_user))
             renderDisconnectedState()
         }
 
@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     private fun startSession(instructions: String) {
         renderConnectingState()
-        appendSystemLine("Connecting to realtime coach...")
+        appendSystemLine(getString(R.string.system_connecting_realtime_coach))
         coachClient.connect(BuildConfig.DASHSCOPE_API_KEY.trim(), instructions)
     }
 
@@ -250,7 +250,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         isSessionActive = false
         binding.connectButton.isEnabled = false
         binding.disconnectButton.isEnabled = true
-        binding.statusText.text = "Status: Connecting..."
+        binding.statusText.text = getString(R.string.status_connecting)
         updateMessageComposerState()
     }
 
@@ -276,11 +276,12 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     override fun onStatusChanged(status: String) {
         runOnUiThread {
-            binding.statusText.text = "Status: $status"
+            binding.statusText.text = status
 
             val normalized = status.lowercase(Locale.US)
-            val isConnecting = normalized.contains("connecting")
-            val isDisconnected = normalized.contains("disconnected")
+            val isConnecting = normalized.contains("connecting") || status.contains("连接中")
+            val isDisconnected =
+                normalized.contains("disconnected") || status.contains("已断开") || status.contains("空闲")
             isSessionActive = !isConnecting && !isDisconnected
 
             if (!isSessionActive) {
@@ -308,7 +309,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     override fun onError(message: String) {
         runOnUiThread {
             releasePushToTalkIfNeeded(createResponse = false)
-            appendSystemLine("Error: $message")
+            appendSystemLine(getString(R.string.system_error_prefix) + message)
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             renderDisconnectedState()
         }
@@ -316,8 +317,8 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     private fun appendTranscriptLine(role: String, text: String) {
         val speaker = when (role.lowercase(Locale.US)) {
-            "user" -> "You"
-            "assistant" -> "Coach"
+            "user" -> getString(R.string.speaker_you)
+            "assistant" -> getString(R.string.speaker_coach)
             else -> role
         }
         val line = "${timeFormatter.format(Date())} $speaker: ${text.trim()}\n"
@@ -328,7 +329,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun appendSystemLine(text: String) {
-        val line = "${timeFormatter.format(Date())} System: $text\n"
+        val line = "${timeFormatter.format(Date())} ${getString(R.string.speaker_system)}: $text\n"
         binding.transcriptLog.append(line)
         binding.logScroll.post {
             binding.logScroll.fullScroll(View.FOCUS_DOWN)

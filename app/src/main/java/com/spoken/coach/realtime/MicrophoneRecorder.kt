@@ -36,7 +36,7 @@ class MicrophoneRecorder(
             AudioFormat.ENCODING_PCM_16BIT
         )
 
-        require(minBuffer > 0) { "Invalid recorder buffer size: $minBuffer" }
+        require(minBuffer > 0) { "录音缓冲区大小无效：$minBuffer" }
 
         val bufferSize = max(minBuffer * 2, sampleRate / 5 * 2)
         val recorder = AudioRecord(
@@ -49,7 +49,7 @@ class MicrophoneRecorder(
 
         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
             recorder.release()
-            throw IllegalStateException("AudioRecord init failed")
+            throw IllegalStateException("AudioRecord 初始化失败")
         }
 
         audioRecord = recorder
@@ -95,3 +95,4 @@ class MicrophoneRecorder(
         scope.cancel()
     }
 }
+
