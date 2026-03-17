@@ -9,7 +9,16 @@
     <string name="stop_coaching">Stop</string>
     <string name="status_idle">Status: Idle</string>
     <string name="conversation_title">Conversation</string>
+    <string name="topic_selector_hint">Practice theme</string>
     <string name="topic_input_hint">Conversation topic (e.g. coffee shop, travel)</string>
+    <string name="custom_topic_input_hint">Custom topic</string>
+    <string name="topic_option_coffee_shop">Coffee shop ordering</string>
+    <string name="topic_option_travel">Travel planning</string>
+    <string name="topic_option_job_interview">Job interview</string>
+    <string name="topic_option_daily_small_talk">Daily small talk</string>
+    <string name="topic_option_business_meeting">Business meeting</string>
+    <string name="topic_option_doctor_visit">Doctor appointment</string>
+    <string name="topic_option_custom">Custom topic</string>
     <string name="last_speech_title">Recognized Speech</string>
     <string name="last_speech_placeholder">Your recognized speech will appear here.</string>
     <string name="message_hint">Type a message to chat</string>
@@ -18,6 +27,7 @@
     <string name="release_to_send">Release to Send</string>
     <string name="toast_enter_message">Please enter a message to send.</string>
     <string name="toast_not_connected">Please connect first before sending text.</string>
+    <string name="toast_enter_custom_topic">Please enter your custom topic.</string>
     <string name="toast_missing_api_key_config">Missing API key in local.properties (dashscope.api.key).</string>
     <string name="toast_hold_to_talk_failed">Unable to start recording, please try again.</string>
 </resources>

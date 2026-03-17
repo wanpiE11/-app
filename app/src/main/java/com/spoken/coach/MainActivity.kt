@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -24,6 +25,8 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private var pendingInstructions: String? = null
     private var isSessionActive = false
     private var isPushToTalkActive = false
+    private lateinit var topicOptions: List<String>
+    private lateinit var customTopicOption: String
 
     private val microphonePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -71,7 +74,50 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
             updateMessageComposerState()
         }
 
+        setupTopicSelection()
         renderDisconnectedState()
+    }
+
+    private fun setupTopicSelection() {
+        topicOptions = resources.getStringArray(R.array.topic_options).toList()
+        customTopicOption = getString(R.string.topic_option_custom)
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, topicOptions)
+        binding.topicPresetInput.setAdapter(adapter)
+
+        if (binding.topicPresetInput.text.isNullOrBlank() && topicOptions.isNotEmpty()) {
+            binding.topicPresetInput.setText(topicOptions.first(), false)
+        }
+
+        updateCustomTopicVisibility(binding.topicPresetInput.text?.toString().orEmpty())
+
+        binding.topicPresetInput.setOnItemClickListener { _, _, _, _ ->
+            updateCustomTopicVisibility(binding.topicPresetInput.text?.toString().orEmpty())
+        }
+
+        binding.topicPresetInput.doAfterTextChanged { text ->
+            updateCustomTopicVisibility(text?.toString().orEmpty())
+        }
+    }
+
+    private fun updateCustomTopicVisibility(selectedTopic: String) {
+        val shouldShowCustom = isCustomTopicSelected(selectedTopic)
+        binding.customTopicLayout.visibility = if (shouldShowCustom) View.VISIBLE else View.GONE
+        if (!shouldShowCustom) {
+            binding.customTopicInput.text?.clear()
+        }
+    }
+
+    private fun isCustomTopicSelected(selectedTopic: String): Boolean {
+        if (selectedTopic.isBlank()) {
+            return false
+        }
+
+        if (selectedTopic.equals(customTopicOption, ignoreCase = true)) {
+            return true
+        }
+
+        return topicOptions.none { option -> option.equals(selectedTopic, ignoreCase = true) }
     }
 
     private fun handleConnectTapped() {
@@ -81,7 +127,8 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
             return
         }
 
-        val instructions = buildCoachInstructions(binding.topicInput.text.toString().trim())
+        val selectedTopic = resolveSelectedTopic() ?: return
+        val instructions = buildCoachInstructions(selectedTopic)
 
         if (hasMicrophonePermission()) {
             startSession(instructions)
@@ -89,6 +136,21 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
             pendingInstructions = instructions
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
+    }
+
+    private fun resolveSelectedTopic(): String? {
+        val presetTopic = binding.topicPresetInput.text?.toString()?.trim().orEmpty()
+        val customTopic = binding.customTopicInput.text?.toString()?.trim().orEmpty()
+
+        if (isCustomTopicSelected(presetTopic)) {
+            if (customTopic.isBlank()) {
+                Toast.makeText(this, getString(R.string.toast_enter_custom_topic), Toast.LENGTH_SHORT).show()
+                return null
+            }
+            return customTopic
+        }
+
+        return presetTopic
     }
 
     private fun handleSendMessageTapped() {

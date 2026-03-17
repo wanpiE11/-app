@@ -58,10 +58,36 @@
                 android:textColor="@color/spoken_subtitle" />
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/topicSelectorLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:hint="@string/topic_input_hint"
+                android:hint="@string/topic_selector_hint"
+                app:boxBackgroundMode="outline"
+                app:boxCornerRadiusBottomEnd="14dp"
+                app:boxCornerRadiusBottomStart="14dp"
+                app:boxCornerRadiusTopEnd="14dp"
+                app:boxCornerRadiusTopStart="14dp"
+                app:boxStrokeColor="@color/spoken_primary">
+
+                <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                    android:id="@+id/topicPresetInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:maxLines="1"
+                    android:textColor="@color/spoken_title"
+                    android:textColorHint="@color/spoken_subtitle" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/customTopicLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="@string/custom_topic_input_hint"
+                android:visibility="gone"
                 app:boxBackgroundMode="outline"
                 app:boxCornerRadiusBottomEnd="14dp"
                 app:boxCornerRadiusBottomStart="14dp"
@@ -70,7 +96,7 @@
                 app:boxStrokeColor="@color/spoken_primary">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/topicInput"
+                    android:id="@+id/customTopicInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:maxLines="1"

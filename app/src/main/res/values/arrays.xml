@@ -1,11 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="topic_options">
-        <item>Coffee shop ordering</item>
-        <item>Travel planning</item>
-        <item>Job interview</item>
-        <item>Daily small talk</item>
-        <item>Business meeting</item>
-        <item>Custom topic</item>
+        <item>@string/topic_option_coffee_shop</item>
+        <item>@string/topic_option_travel</item>
+        <item>@string/topic_option_job_interview</item>
+        <item>@string/topic_option_daily_small_talk</item>
+        <item>@string/topic_option_business_meeting</item>
+        <item>@string/topic_option_doctor_visit</item>
+        <item>@string/topic_option_custom</item>
     </string-array>
 </resources>
