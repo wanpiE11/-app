@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spoken Coach</string>
+    <string name="api_key_hint">DashScope API Key</string>
+    <string name="topic_hint">Practice topic (e.g. travel, interview)</string>
+    <string name="start_coaching">Start Coaching</string>
+    <string name="stop_coaching">Stop</string>
+    <string name="status_idle">Status: Idle</string>
+    <string name="conversation_title">Conversation</string>
+    <string name="topic_input_hint">Conversation topic (e.g. coffee shop, travel)</string>
+    <string name="last_speech_title">Recognized Speech</string>
+    <string name="last_speech_placeholder">Your recognized speech will appear here.</string>
+    <string name="message_hint">Type a message to chat</string>
+    <string name="send_message">Send</string>
+    <string name="hold_to_talk">Hold to Talk</string>
+    <string name="release_to_send">Release to Send</string>
+    <string name="toast_enter_message">Please enter a message to send.</string>
+    <string name="toast_not_connected">Please connect first before sending text.</string>
+    <string name="toast_enter_api_key">Please enter your DashScope API key.</string>
+    <string name="toast_hold_to_talk_failed">Unable to start recording, please try again.</string>
+</resources>
