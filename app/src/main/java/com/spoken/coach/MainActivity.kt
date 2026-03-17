@@ -21,8 +21,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private lateinit var binding: ActivityMainBinding
     private val coachClient: RealtimeCoachClient by lazy { RealtimeCoachClient(this) }
     private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-
-    private var pendingApiKey: String? = null
     private var pendingInstructions: String? = null
     private var isSessionActive = false
     private var isPushToTalkActive = false
@@ -30,12 +28,10 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private val microphonePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                val key = pendingApiKey
                 val instructions = pendingInstructions
-                pendingApiKey = null
                 pendingInstructions = null
-                if (!key.isNullOrBlank() && !instructions.isNullOrBlank()) {
-                    startSession(key, instructions)
+                if (!instructions.isNullOrBlank()) {
+                    startSession(instructions)
                 }
             } else {
                 Toast.makeText(this, "Microphone permission is required.", Toast.LENGTH_SHORT).show()
@@ -79,18 +75,17 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun handleConnectTapped() {
-        val apiKey = binding.apiKeyInput.text.toString().trim()
+        val apiKey = BuildConfig.DASHSCOPE_API_KEY.trim()
         if (apiKey.isBlank()) {
-            Toast.makeText(this, getString(R.string.toast_enter_api_key), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_missing_api_key_config), Toast.LENGTH_SHORT).show()
             return
         }
 
         val instructions = buildCoachInstructions(binding.topicInput.text.toString().trim())
 
         if (hasMicrophonePermission()) {
-            startSession(apiKey, instructions)
+            startSession(instructions)
         } else {
-            pendingApiKey = apiKey
             pendingInstructions = instructions
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
@@ -161,10 +156,10 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         binding.pushToTalkButton.text = getString(R.string.hold_to_talk)
     }
 
-    private fun startSession(apiKey: String, instructions: String) {
+    private fun startSession(instructions: String) {
         renderConnectingState()
         appendSystemLine("Connecting to realtime coach...")
-        coachClient.connect(apiKey, instructions)
+        coachClient.connect(BuildConfig.DASHSCOPE_API_KEY.trim(), instructions)
     }
 
     private fun buildCoachInstructions(topic: String): String {
@@ -284,4 +279,3 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         super.onDestroy()
     }
 }
-

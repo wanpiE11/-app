@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Spoken Coach</string>
-    <string name="api_key_hint">DashScope API Key</string>
     <string name="topic_hint">Practice topic (e.g. travel, interview)</string>
     <string name="start_coaching">Start Coaching</string>
     <string name="stop_coaching">Stop</string>
@@ -16,6 +15,6 @@
     <string name="release_to_send">Release to Send</string>
     <string name="toast_enter_message">Please enter a message to send.</string>
     <string name="toast_not_connected">Please connect first before sending text.</string>
-    <string name="toast_enter_api_key">Please enter your DashScope API key.</string>
+    <string name="toast_missing_api_key_config">Missing API key in local.properties (dashscope.api.key).</string>
     <string name="toast_hold_to_talk_failed">Unable to start recording, please try again.</string>
 </resources>

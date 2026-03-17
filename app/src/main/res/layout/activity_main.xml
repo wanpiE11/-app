@@ -6,18 +6,9 @@
     android:padding="16dp">
 
     <EditText
-        android:id="@+id/apiKeyInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/api_key_hint"
-        android:inputType="textPassword"
-        android:maxLines="1" />
-
-    <EditText
         android:id="@+id/topicInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:hint="@string/topic_input_hint"
         android:maxLines="1" />
 

@@ -3,6 +3,19 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun String.escapeForBuildConfig(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+val dashScopeApiKey = (localProperties.getProperty("dashscope.api.key") ?: "").escapeForBuildConfig()
+
 android {
     namespace = "com.spoken.coach"
     compileSdk = 35
@@ -19,6 +32,7 @@ android {
         buildConfigField("String", "REALTIME_BASE_URL", "\"wss://dashscope.aliyuncs.com/api-ws/v1/realtime\"")
         buildConfigField("String", "REALTIME_MODEL", "\"qwen3-omni-flash-realtime\"")
         buildConfigField("String", "REALTIME_VOICE", "\"Cherry\"")
+        buildConfigField("String", "DASHSCOPE_API_KEY", "\"$dashScopeApiKey\"")
     }
 
     buildTypes {
@@ -55,6 +69,3 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
-
-
-
