@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Spoken Coach</string>
+    <string name="app_tagline">Realtime speaking practice with your AI coach</string>
     <string name="topic_hint">Practice topic (e.g. travel, interview)</string>
+    <string name="coach_control_title">Coaching Session</string>
+    <string name="coach_control_subtitle">Choose a topic and start speaking naturally</string>
     <string name="start_coaching">Start Coaching</string>
     <string name="stop_coaching">Stop</string>
     <string name="status_idle">Status: Idle</string>

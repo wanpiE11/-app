@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="spoken_primary">#8CB8FF</color>
+    <color name="spoken_on_primary">#002B63</color>
+    <color name="spoken_primary_container">#164A92</color>
+    <color name="spoken_on_primary_container">#D9E7FF</color>
+    <color name="spoken_secondary">#58D4DD</color>
+    <color name="spoken_on_secondary">#00363B</color>
+    <color name="spoken_secondary_container">#00545C</color>
+    <color name="spoken_on_secondary_container">#A8F0F4</color>
+    <color name="spoken_tertiary">#D0BCFF</color>
+    <color name="spoken_on_tertiary">#381E72</color>
+    <color name="spoken_tertiary_container">#513B8C</color>
+    <color name="spoken_on_tertiary_container">#E9DDFF</color>
+    <color name="spoken_background">#0F1729</color>
+    <color name="spoken_surface">#121D33</color>
+    <color name="spoken_on_surface">#EAF1FF</color>
+    <color name="spoken_on_surface_variant">#B5C3D9</color>
+    <color name="spoken_outline_soft">#4DAFC3E6</color>
+
+    <color name="spoken_bg_top">#0E1728</color>
+    <color name="spoken_bg_bottom">#14203A</color>
+    <color name="spoken_card">#1A2842</color>
+    <color name="spoken_inner_surface">#233455</color>
+    <color name="spoken_title">#EAF1FF</color>
+    <color name="spoken_subtitle">#B6C4D9</color>
+    <color name="spoken_text_main">#DAE7FF</color>
+    <color name="spoken_status_bg">#20345A</color>
+</resources>

@@ -1,7 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <style name="Theme.Spoken" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/spoken_primary</item>
+        <item name="colorOnPrimary">@color/spoken_on_primary</item>
+        <item name="colorPrimaryContainer">@color/spoken_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/spoken_on_primary_container</item>
+
+        <item name="colorSecondary">@color/spoken_secondary</item>
+        <item name="colorOnSecondary">@color/spoken_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/spoken_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/spoken_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/spoken_tertiary</item>
+        <item name="colorOnTertiary">@color/spoken_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/spoken_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/spoken_on_tertiary_container</item>
+
+        <item name="colorSurface">@color/spoken_surface</item>
+        <item name="colorOnSurface">@color/spoken_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/spoken_on_surface_variant</item>
+        <item name="android:windowBackground">@color/spoken_background</item>
+
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>

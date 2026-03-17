@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="topic_options">
+        <item>Coffee shop ordering</item>
+        <item>Travel planning</item>
+        <item>Job interview</item>
+        <item>Daily small talk</item>
+        <item>Business meeting</item>
+        <item>Custom topic</item>
+    </string-array>
+</resources>
