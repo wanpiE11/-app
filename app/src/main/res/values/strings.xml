@@ -2,23 +2,15 @@
 <resources>
     <string name="app_name">口语教练</string>
     <string name="app_tagline">和 AI 教练进行实时口语练习</string>
-    <string name="topic_hint">练习主题（如：旅行、面试）</string>
+
     <string name="coach_control_title">练习控制</string>
     <string name="coach_control_subtitle">选择主题后，自然开口练习</string>
-    <string name="start_coaching">开始练习</string>
-    <string name="stop_coaching">结束练习</string>
-    <string name="status_idle">状态：空闲</string>
-    <string name="status_connecting">状态：连接中...</string>
-    <string name="status_connected">状态：已连接</string>
-    <string name="status_ready_hold_to_talk">状态：已就绪，按住说话</string>
-    <string name="status_disconnected">状态：已断开</string>
-    <string name="status_listening">状态：聆听中...</string>
-    <string name="status_thinking">状态：思考中...</string>
-    <string name="status_session_created">状态：会话已创建</string>
-    <string name="conversation_title">对话记录</string>
+
+    <string name="topic_hint">练习主题（如：旅行、面试）</string>
     <string name="topic_selector_hint">练习主题</string>
     <string name="topic_input_hint">对话主题（如：咖啡店、旅行）</string>
     <string name="custom_topic_input_hint">自定义主题</string>
+
     <string name="topic_option_coffee_shop">咖啡店点单</string>
     <string name="topic_option_travel">旅行规划</string>
     <string name="topic_option_job_interview">求职面试</string>
@@ -26,22 +18,52 @@
     <string name="topic_option_business_meeting">商务会议</string>
     <string name="topic_option_doctor_visit">医院问诊</string>
     <string name="topic_option_custom">自定义主题</string>
-    <string name="last_speech_title">语音识别结果</string>
-    <string name="last_speech_placeholder">你的语音识别结果会显示在这里。</string>
-    <string name="message_hint">输入消息开始对话</string>
-    <string name="send_message">发送</string>
+
+    <string name="start_coaching">开始练习</string>
+    <string name="stop_coaching">结束练习</string>
+
+    <string name="status_idle">状态：空闲</string>
+    <string name="status_connecting">状态：连接中...</string>
+    <string name="status_connected">状态：已连接</string>
+    <string name="status_ready_hold_to_talk">状态：就绪，按住说话</string>
+    <string name="status_disconnected">状态：已断开</string>
+    <string name="status_listening">状态：监听中...</string>
+    <string name="status_thinking">状态：思考中...</string>
+    <string name="status_session_created">状态：会话已创建</string>
+
     <string name="hold_to_talk">按住说话</string>
     <string name="release_to_send">松开发送</string>
-    <string name="toast_enter_message">请输入要发送的消息。</string>
-    <string name="toast_not_connected">请先连接后再发送消息。</string>
-    <string name="toast_enter_custom_topic">请输入自定义主题。</string>
-    <string name="toast_missing_api_key_config">未在 local.properties 中配置 API Key（dashscope.api.key）。</string>
-    <string name="toast_hold_to_talk_failed">无法开始录音，请重试。</string>
-    <string name="toast_microphone_permission_required">需要麦克风权限才能开始练习。</string>
+
+    <string name="last_speech_title">语音识别结果</string>
+    <string name="last_speech_placeholder">你的语音识别内容会显示在这里</string>
+
+    <string name="conversation_title">对话记录</string>
+    <string name="message_hint">输入消息开始对话</string>
+    <string name="send_message">发送</string>
+
+    <string name="toast_enter_message">请输入要发送的消息</string>
+    <string name="toast_not_connected">请先连接后再发送消息</string>
+    <string name="toast_enter_custom_topic">请输入自定义主题</string>
+    <string name="toast_hold_to_talk_failed">无法开始录音，请重试</string>
+    <string name="toast_microphone_permission_required">需要麦克风权限才能开始练习</string>
+    <string name="toast_missing_api_key_config">未在 local.properties 配置 API Key（dashscope.api.key）</string>
+    <string name="toast_missing_api_key">请先在设置中填写 API Key，或在 local.properties 配置 dashscope.api.key</string>
+    <string name="toast_api_key_saved">API Key 已保存，将在下次连接时生效</string>
+    <string name="toast_api_key_cleared">已清除用户 API Key，将使用默认配置</string>
+
     <string name="speaker_you">你</string>
     <string name="speaker_coach">教练</string>
     <string name="speaker_system">系统</string>
-    <string name="system_session_ended_by_user">用户已结束会话。</string>
+
+    <string name="system_session_ended_by_user">用户已结束会话</string>
     <string name="system_connecting_realtime_coach">正在连接实时教练...</string>
     <string name="system_error_prefix">错误：</string>
+
+    <string name="settings_button_label">设置</string>
+    <string name="settings_dialog_title">API Key 设置</string>
+    <string name="settings_api_key_hint">输入你的 API Key</string>
+    <string name="settings_api_key_helper">留空则使用默认配置的 API Key</string>
+    <string name="settings_save">保存</string>
+    <string name="settings_cancel">取消</string>
+    <string name="settings_clear">清除</string>
 </resources>

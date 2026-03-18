@@ -3,14 +3,20 @@ package com.spoken.coach
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.text.InputType
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.widget.doAfterTextChanged
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.spoken.coach.databinding.ActivityMainBinding
 import com.spoken.coach.realtime.RealtimeCoachClient
 import java.text.SimpleDateFormat
@@ -22,7 +28,10 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private lateinit var binding: ActivityMainBinding
     private val coachClient: RealtimeCoachClient by lazy { RealtimeCoachClient(this) }
     private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    private val appPrefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
+
     private var pendingInstructions: String? = null
+    private var pendingApiKey: String? = null
     private var isSessionActive = false
     private var isPushToTalkActive = false
     private lateinit var topicOptions: List<String>
@@ -32,12 +41,16 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
                 val instructions = pendingInstructions
+                val apiKey = pendingApiKey
                 pendingInstructions = null
-                if (!instructions.isNullOrBlank()) {
-                    startSession(instructions)
+                pendingApiKey = null
+                if (!instructions.isNullOrBlank() && !apiKey.isNullOrBlank()) {
+                    startSession(apiKey, instructions)
                 }
             } else {
                 Toast.makeText(this, getString(R.string.toast_microphone_permission_required), Toast.LENGTH_SHORT).show()
+                pendingInstructions = null
+                pendingApiKey = null
                 renderDisconnectedState()
             }
         }
@@ -49,6 +62,10 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
         binding.connectButton.setOnClickListener {
             handleConnectTapped()
+        }
+
+        binding.settingsButton.setOnClickListener {
+            showApiKeySettingsDialog()
         }
 
         binding.disconnectButton.setOnClickListener {
@@ -121,9 +138,9 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun handleConnectTapped() {
-        val apiKey = BuildConfig.DASHSCOPE_API_KEY.trim()
+        val apiKey = resolveApiKey()
         if (apiKey.isBlank()) {
-            Toast.makeText(this, getString(R.string.toast_missing_api_key_config), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_missing_api_key), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -131,8 +148,9 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         val instructions = buildCoachInstructions(selectedTopic)
 
         if (hasMicrophonePermission()) {
-            startSession(instructions)
+            startSession(apiKey, instructions)
         } else {
+            pendingApiKey = apiKey
             pendingInstructions = instructions
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
@@ -218,10 +236,67 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         binding.pushToTalkButton.text = getString(R.string.hold_to_talk)
     }
 
-    private fun startSession(instructions: String) {
+    private fun startSession(apiKey: String, instructions: String) {
         renderConnectingState()
         appendSystemLine(getString(R.string.system_connecting_realtime_coach))
-        coachClient.connect(BuildConfig.DASHSCOPE_API_KEY.trim(), instructions)
+        coachClient.connect(apiKey, instructions)
+    }
+
+    private fun resolveApiKey(): String {
+        val userApiKey = appPrefs.getString(KEY_USER_API_KEY, "").orEmpty().trim()
+        if (userApiKey.isNotBlank()) {
+            return userApiKey
+        }
+        return BuildConfig.DASHSCOPE_API_KEY.trim()
+    }
+
+    private fun showApiKeySettingsDialog() {
+        val inputLayout = TextInputLayout(this).apply {
+            hint = getString(R.string.settings_api_key_hint)
+            helperText = getString(R.string.settings_api_key_helper)
+            endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+            setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE)
+        }
+
+        val input = TextInputEditText(inputLayout.context).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(appPrefs.getString(KEY_USER_API_KEY, "").orEmpty())
+            setSelection(text?.length ?: 0)
+        }
+        inputLayout.addView(input)
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = dp(20)
+            setPadding(padding, dp(8), padding, 0)
+            addView(
+                inputLayout,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.settings_dialog_title))
+            .setView(container)
+            .setNegativeButton(getString(R.string.settings_cancel), null)
+            .setNeutralButton(getString(R.string.settings_clear)) { _, _ ->
+                appPrefs.edit { remove(KEY_USER_API_KEY) }
+                Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT).show()
+            }
+            .setPositiveButton(getString(R.string.settings_save)) { _, _ ->
+                val value = input.text?.toString().orEmpty().trim()
+                if (value.isBlank()) {
+                    appPrefs.edit { remove(KEY_USER_API_KEY) }
+                    Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT).show()
+                } else {
+                    appPrefs.edit { putString(KEY_USER_API_KEY, value) }
+                    Toast.makeText(this, getString(R.string.toast_api_key_saved), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
     }
 
     private fun buildCoachInstructions(topic: String): String {
@@ -336,9 +411,17 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         }
     }
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     override fun onDestroy() {
         releasePushToTalkIfNeeded(createResponse = false)
         coachClient.release()
         super.onDestroy()
     }
+
+    companion object {
+        private const val PREFS_NAME = "spoken_settings"
+        private const val KEY_USER_API_KEY = "user_api_key"
+    }
 }
+

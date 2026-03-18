@@ -11,6 +11,8 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.LinkedHashMap
+import java.util.LinkedHashSet
 import java.util.concurrent.TimeUnit
 
 class RealtimeCoachClient(private val listener: Listener) {
@@ -42,6 +44,12 @@ class RealtimeCoachClient(private val listener: Listener) {
     private val assistantAudioTranscriptBuffer = StringBuilder()
     private val assistantTextBuffer = StringBuilder()
 
+    private val userTranscriptLock = Any()
+
+    // Buffer live ASR deltas so the UI can show full in-progress text.
+    private val liveUserTranscriptBuffers = LinkedHashMap<String, StringBuilder>()
+    private val liveUserTranscriptFallbackBuffer = StringBuilder()
+
     // Prevent duplicate user messages when providers emit multiple final events.
     private val emittedUserTranscriptItemIds = LinkedHashSet<String>()
     private var lastUserTranscriptWithoutItemId: String? = null
@@ -51,7 +59,7 @@ class RealtimeCoachClient(private val listener: Listener) {
         disconnect()
         connectAttemptId += 1
         val attemptId = connectAttemptId
-        listener.onStatusChanged("状态：连接中...")
+        listener.onStatusChanged("Status: connecting...")
         scheduleConnectionTimeout(attemptId)
 
         val request = Request.Builder()
@@ -63,10 +71,10 @@ class RealtimeCoachClient(private val listener: Listener) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 cancelConnectionTimeout()
                 isSocketConnected = true
-                listener.onStatusChanged("状态：已连接")
+                listener.onStatusChanged("Status: connected")
                 setupAudioOutput()
                 sendSessionUpdate(webSocket, instructions)
-                listener.onStatusChanged("状态：已就绪，按住说话")
+                listener.onStatusChanged("Status: ready, hold to talk")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -80,7 +88,7 @@ class RealtimeCoachClient(private val listener: Listener) {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 cancelConnectionTimeout()
                 isSocketConnected = false
-                listener.onStatusChanged("状态：已断开")
+                listener.onStatusChanged("Status: disconnected")
                 cleanupAudio()
                 clearUserTranscriptCache()
             }
@@ -101,7 +109,7 @@ class RealtimeCoachClient(private val listener: Listener) {
         isSocketConnected = false
         cleanupAudio()
         clearUserTranscriptCache()
-        webSocket?.close(1000, "用户结束会话")
+        webSocket?.close(1000, "User ended session")
         webSocket = null
     }
 
@@ -143,7 +151,7 @@ class RealtimeCoachClient(private val listener: Listener) {
 
         val responseRequested = socket.send(responseCreate.toString())
         if (responseRequested) {
-            listener.onStatusChanged("状态：思考中...")
+            listener.onStatusChanged("Status: thinking...")
         }
         return responseRequested
     }
@@ -157,10 +165,10 @@ class RealtimeCoachClient(private val listener: Listener) {
         ensureMicrophoneRecorder()
         return try {
             microphoneRecorder?.start()
-            listener.onStatusChanged("状态：聆听中...")
+            listener.onStatusChanged("Status: listening...")
             true
         } catch (t: Throwable) {
-            listener.onError("启动麦克风失败：${t.message ?: "未知错误"}")
+            listener.onError("Failed to start microphone: ${t.message ?: "unknown error"}")
             disconnect()
             false
         }
@@ -190,7 +198,7 @@ class RealtimeCoachClient(private val listener: Listener) {
 
         val responseSent = socket.send(buildAudioResponseCreateEvent().toString())
         if (responseSent) {
-            listener.onStatusChanged("状态：思考中...")
+            listener.onStatusChanged("Status: thinking...")
         }
         return responseSent
     }
@@ -253,20 +261,22 @@ class RealtimeCoachClient(private val listener: Listener) {
         }
 
         when (event.optString("type")) {
-            "session.created" -> listener.onStatusChanged("状态：会话已创建")
-            "session.updated" -> listener.onStatusChanged("状态：已就绪，按住说话")
-            "input_audio_buffer.speech_started" -> listener.onStatusChanged("状态：聆听中...")
-            "input_audio_buffer.speech_stopped" -> listener.onStatusChanged("状态：思考中...")
+            "session.created" -> listener.onStatusChanged("Status: session created")
+            "session.updated" -> listener.onStatusChanged("Status: ready, hold to talk")
+
+            "input_audio_buffer.speech_started" -> {
+                clearLiveUserTranscriptBuffers()
+                listener.onStatusChanged("Status: listening...")
+            }
+
+            "input_audio_buffer.speech_stopped" -> listener.onStatusChanged("Status: thinking...")
 
             "conversation.item.input_audio_transcription.text",
-            "conversation.item.input_audio_transcription.delta" -> {
-                extractUserTranscript(event, includeItemContent = false)?.let { (_, transcript) ->
-                    listener.onUserSpeechRecognized(transcript)
-                }
-            }
+            "conversation.item.input_audio_transcription.delta" -> emitUserTranscriptPreview(event)
 
             "conversation.item.input_audio_transcription.completed" -> {
                 extractUserTranscript(event)?.let { (itemId, transcript) ->
+                    clearLiveUserTranscriptBuffer(itemId)
                     emitUserTranscript(itemId, transcript)
                 }
             }
@@ -277,6 +287,7 @@ class RealtimeCoachClient(private val listener: Listener) {
                     val itemId = item.optString("id").ifBlank { null }
                     val transcript = extractTranscriptFromItemContent(item.optJSONArray("content"))
                     if (!transcript.isNullOrBlank()) {
+                        clearLiveUserTranscriptBuffer(itemId)
                         emitUserTranscript(itemId, transcript)
                     }
                 }
@@ -426,13 +437,52 @@ class RealtimeCoachClient(private val listener: Listener) {
         return null
     }
 
+    private fun emitUserTranscriptPreview(event: JSONObject) {
+        val itemId = event.optString("item_id").ifBlank { null }
+        val eventType = event.optString("type")
+        val isDelta = eventType.endsWith(".delta")
+
+        val segment = when {
+            event.optString("delta").isNotBlank() -> event.optString("delta")
+            event.optString("transcript").isNotBlank() -> event.optString("transcript")
+            event.optString("text").isNotBlank() -> event.optString("text")
+            else -> return
+        }
+
+        val preview = synchronized(userTranscriptLock) {
+            if (!itemId.isNullOrBlank()) {
+                val buffer = liveUserTranscriptBuffers.getOrPut(itemId) { StringBuilder() }
+                if (isDelta) {
+                    buffer.append(segment)
+                } else {
+                    buffer.clear()
+                    buffer.append(segment)
+                }
+                trimLiveUserTranscriptBuffersIfNeeded()
+                buffer.toString().trim()
+            } else {
+                if (isDelta) {
+                    liveUserTranscriptFallbackBuffer.append(segment)
+                } else {
+                    liveUserTranscriptFallbackBuffer.clear()
+                    liveUserTranscriptFallbackBuffer.append(segment)
+                }
+                liveUserTranscriptFallbackBuffer.toString().trim()
+            }
+        }
+
+        if (preview.isNotBlank()) {
+            listener.onUserSpeechRecognized(preview)
+        }
+    }
+
     private fun emitUserTranscript(itemId: String?, text: String) {
         val finalText = text.trim()
         if (finalText.isBlank()) {
             return
         }
 
-        val shouldEmit = synchronized(emittedUserTranscriptItemIds) {
+        val shouldEmit = synchronized(userTranscriptLock) {
             if (!itemId.isNullOrBlank()) {
                 if (!emittedUserTranscriptItemIds.add(itemId)) {
                     false
@@ -456,6 +506,34 @@ class RealtimeCoachClient(private val listener: Listener) {
         listener.onTranscript("user", finalText)
     }
 
+    private fun trimLiveUserTranscriptBuffersIfNeeded() {
+        while (liveUserTranscriptBuffers.size > 200) {
+            val iterator = liveUserTranscriptBuffers.iterator()
+            if (!iterator.hasNext()) {
+                return
+            }
+            iterator.next()
+            iterator.remove()
+        }
+    }
+
+    private fun clearLiveUserTranscriptBuffer(itemId: String?) {
+        synchronized(userTranscriptLock) {
+            if (!itemId.isNullOrBlank()) {
+                liveUserTranscriptBuffers.remove(itemId)
+            } else {
+                liveUserTranscriptFallbackBuffer.clear()
+            }
+        }
+    }
+
+    private fun clearLiveUserTranscriptBuffers() {
+        synchronized(userTranscriptLock) {
+            liveUserTranscriptBuffers.clear()
+            liveUserTranscriptFallbackBuffer.clear()
+        }
+    }
+
     private fun trimUserTranscriptCacheIfNeeded() {
         while (emittedUserTranscriptItemIds.size > 200) {
             val iterator = emittedUserTranscriptItemIds.iterator()
@@ -468,9 +546,11 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     private fun clearUserTranscriptCache() {
-        synchronized(emittedUserTranscriptItemIds) {
+        synchronized(userTranscriptLock) {
             emittedUserTranscriptItemIds.clear()
             lastUserTranscriptWithoutItemId = null
+            liveUserTranscriptBuffers.clear()
+            liveUserTranscriptFallbackBuffer.clear()
         }
     }
 
@@ -493,7 +573,7 @@ class RealtimeCoachClient(private val listener: Listener) {
             }
 
             listener.onError(
-                "连接超时（${CONNECTION_TIMEOUT_MS / 1000} 秒）。请检查 API Key、网络和实时接口地址。"
+                "Connection timed out (${CONNECTION_TIMEOUT_MS / 1000}s). Check API key, network, and realtime endpoint."
             )
             disconnect()
         }
@@ -508,7 +588,7 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     private fun buildConnectionFailureMessage(t: Throwable, response: Response?): String {
-        val throwableMessage = t.message ?: "未知错误"
+        val throwableMessage = t.message ?: "unknown error"
         val responseDetails = response?.let { resp ->
             val bodySnippet = try {
                 resp.body?.string().orEmpty().trim()
@@ -529,9 +609,9 @@ class RealtimeCoachClient(private val listener: Listener) {
         }
 
         return if (responseDetails.isNullOrBlank()) {
-            "实时连接失败：$throwableMessage"
+            "Realtime connection failed: $throwableMessage"
         } else {
-            "实时连接失败：$throwableMessage（$responseDetails）"
+            "Realtime connection failed: $throwableMessage ($responseDetails)"
         }
     }
 
@@ -540,4 +620,3 @@ class RealtimeCoachClient(private val listener: Listener) {
         private const val CONNECTION_TIMEOUT_MS = 15_000L
     }
 }
-
