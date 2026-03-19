@@ -238,7 +238,10 @@ class RealtimeCoachClient(private val listener: Listener) {
             .put("instructions", instructions)
             .put("voice", BuildConfig.REALTIME_VOICE)
             .put("input_audio_format", "pcm")
-            .put("input_audio_transcription", JSONObject())
+            .put(
+                "input_audio_transcription",
+                JSONObject().put("model", INPUT_AUDIO_TRANSCRIPTION_MODEL)
+            )
             .put("output_audio_format", "pcm")
             .put("turn_detection", turnDetection)
 
@@ -280,6 +283,15 @@ class RealtimeCoachClient(private val listener: Listener) {
                     clearLiveUserTranscriptBuffer(itemId)
                     emitUserTranscript(itemId, transcript)
                 }
+            }
+
+            "conversation.item.input_audio_transcription.failed" -> {
+                val itemId = event.optString("item_id").ifBlank { null }
+                clearLiveUserTranscriptBuffer(itemId)
+                listener.onTranscript(
+                    "system",
+                    "Speech transcription failed: ${extractNestedErrorMessage(event)}"
+                )
             }
 
             "conversation.item.created" -> {
@@ -381,6 +393,10 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     private fun extractError(event: JSONObject): String {
+        return extractNestedErrorMessage(event)
+    }
+
+    private fun extractNestedErrorMessage(event: JSONObject): String {
         val nested = event.optJSONObject("error")
         val message = nested?.optString("message")
         return if (message.isNullOrBlank()) {
@@ -624,5 +640,6 @@ class RealtimeCoachClient(private val listener: Listener) {
     companion object {
         private const val SAMPLE_RATE = 24_000
         private const val CONNECTION_TIMEOUT_MS = 15_000L
+        private const val INPUT_AUDIO_TRANSCRIPTION_MODEL = "gummy-realtime-v1"
     }
 }
