@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Spoken Coach（Android）
 
 这是一个极简的英语口语练习应用，基于 DashScope 的 OpenAI 兼容模式接入 Qwen Realtime API。
@@ -39,6 +40,4 @@
 - 这是一个用于学习和原型验证的演示级实现。
 - 为了简化演示，API Key 直接在设备端输入；生产环境应使用后端和短时凭证。
 - 实时 API 的事件格式可能会演进；若 DashScope 更新了兼容模式事件 schema，请同步调整解析逻辑。
-
-
 
