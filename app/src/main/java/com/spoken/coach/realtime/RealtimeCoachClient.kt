@@ -74,7 +74,7 @@ class RealtimeCoachClient(private val listener: Listener) {
                 listener.onStatusChanged("Status: connected")
                 setupAudioOutput()
                 sendSessionUpdate(webSocket, instructions)
-                listener.onStatusChanged("Status: ready, hold to talk")
+                listener.onStatusChanged("Status: session configuring...")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -155,9 +155,44 @@ class RealtimeCoachClient(private val listener: Listener) {
         }
         return responseRequested
     }
-
     @Synchronized
     fun startPushToTalk(): Boolean {
+        // Backward-compatible alias: "push-to-talk" now means real-time continuous listening.
+        return startContinuousListening()
+    }
+
+    @Synchronized
+    fun stopPushToTalk(createResponse: Boolean): Boolean {
+        // Backward-compatible alias: stopping mic is still supported, but response generation
+        // is now handled automatically by server-side VAD.
+        stopContinuousListening()
+        if (createResponse) {
+            listener.onStatusChanged("Status: thinking...")
+        }
+        return true
+    }
+    private fun setupAudioOutput() {
+        if (pcmAudioPlayer == null) {
+            pcmAudioPlayer = PcmAudioPlayer(SAMPLE_RATE)
+        }
+        pcmAudioPlayer?.start()
+    }
+    private fun ensureMicrophoneRecorder() {
+        if (microphoneRecorder == null) {
+            microphoneRecorder = MicrophoneRecorder(SAMPLE_RATE) { chunk ->
+                val socket = webSocket
+                if (socket != null) {
+                    val event = JSONObject()
+                        .put("type", "input_audio_buffer.append")
+                        .put("audio", Base64.encodeToString(chunk, Base64.NO_WRAP))
+                    socket.send(event.toString())
+                }
+            }
+        }
+    }
+
+    @Synchronized
+    private fun startContinuousListening(): Boolean {
         if (webSocket == null || !isSocketConnected) {
             return false
         }
@@ -175,53 +210,8 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     @Synchronized
-    fun stopPushToTalk(createResponse: Boolean): Boolean {
-        val recorder = microphoneRecorder ?: return false
-        if (!recorder.isRecordingActive()) {
-            return false
-        }
-
-        recorder.stop()
-        if (!createResponse) {
-            return true
-        }
-
-        val socket = webSocket
-        if (socket == null || !isSocketConnected) {
-            return false
-        }
-
-        val commitSent = socket.send(JSONObject().put("type", "input_audio_buffer.commit").toString())
-        if (!commitSent) {
-            return false
-        }
-
-        val responseSent = socket.send(buildAudioResponseCreateEvent().toString())
-        if (responseSent) {
-            listener.onStatusChanged("Status: thinking...")
-        }
-        return responseSent
-    }
-
-    private fun setupAudioOutput() {
-        if (pcmAudioPlayer == null) {
-            pcmAudioPlayer = PcmAudioPlayer(SAMPLE_RATE)
-        }
-        pcmAudioPlayer?.start()
-    }
-
-    private fun ensureMicrophoneRecorder() {
-        if (microphoneRecorder == null) {
-            microphoneRecorder = MicrophoneRecorder(SAMPLE_RATE) { chunk ->
-                val socket = webSocket
-                if (socket != null) {
-                    val event = JSONObject()
-                        .put("type", "input_audio_buffer.append")
-                        .put("audio", Base64.encodeToString(chunk, Base64.NO_WRAP))
-                    socket.send(event.toString())
-                }
-            }
-        }
+    private fun stopContinuousListening() {
+        microphoneRecorder?.stop()
     }
 
     private fun buildAudioResponseCreateEvent(): JSONObject {
@@ -235,8 +225,14 @@ class RealtimeCoachClient(private val listener: Listener) {
                 )
             )
     }
-
     private fun sendSessionUpdate(socket: WebSocket, instructions: String) {
+        val turnDetection = JSONObject()
+            .put("type", "server_vad")
+            .put("create_response", true)
+            .put("interrupt_response", true)
+            .put("prefix_padding_ms", 240)
+            .put("silence_duration_ms", 650)
+
         val session = JSONObject()
             .put("modalities", JSONArray().put("audio").put("text"))
             .put("instructions", instructions)
@@ -244,7 +240,7 @@ class RealtimeCoachClient(private val listener: Listener) {
             .put("input_audio_format", "pcm")
             .put("input_audio_transcription", JSONObject())
             .put("output_audio_format", "pcm")
-            .put("turn_detection", JSONObject.NULL)
+            .put("turn_detection", turnDetection)
 
         val sessionUpdate = JSONObject()
             .put("type", "session.update")
@@ -262,7 +258,12 @@ class RealtimeCoachClient(private val listener: Listener) {
 
         when (event.optString("type")) {
             "session.created" -> listener.onStatusChanged("Status: session created")
-            "session.updated" -> listener.onStatusChanged("Status: ready, hold to talk")
+            "session.updated" -> {
+                val listening = startContinuousListening()
+                if (!listening && isSocketConnected) {
+                    listener.onStatusChanged("Status: ready")
+                }
+            }
 
             "input_audio_buffer.speech_started" -> {
                 clearLiveUserTranscriptBuffers()
@@ -330,7 +331,12 @@ class RealtimeCoachClient(private val listener: Listener) {
                 }
             }
 
-            "response.done" -> flushAssistantBuffers()
+            "response.done" -> {
+                flushAssistantBuffers()
+                if (isSocketConnected) {
+                    listener.onStatusChanged("Status: listening...")
+                }
+            }
             "error" -> listener.onError(extractError(event))
         }
     }
@@ -555,7 +561,7 @@ class RealtimeCoachClient(private val listener: Listener) {
     }
 
     private fun cleanupAudio() {
-        microphoneRecorder?.stop()
+        stopContinuousListening()
         pcmAudioPlayer?.stop()
     }
 

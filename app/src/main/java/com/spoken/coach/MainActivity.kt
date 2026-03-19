@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
-import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
@@ -33,7 +32,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private var pendingInstructions: String? = null
     private var pendingApiKey: String? = null
     private var isSessionActive = false
-    private var isPushToTalkActive = false
     private lateinit var topicOptions: List<String>
     private lateinit var customTopicOption: String
 
@@ -48,7 +46,11 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
                     startSession(apiKey, instructions)
                 }
             } else {
-                Toast.makeText(this, getString(R.string.toast_microphone_permission_required), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    getString(R.string.toast_microphone_permission_required),
+                    Toast.LENGTH_SHORT
+                ).show()
                 pendingInstructions = null
                 pendingApiKey = null
                 renderDisconnectedState()
@@ -69,18 +71,13 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
         }
 
         binding.disconnectButton.setOnClickListener {
-            releasePushToTalkIfNeeded(createResponse = false)
             coachClient.disconnect()
             appendSystemLine(getString(R.string.system_session_ended_by_user))
             renderDisconnectedState()
         }
 
         binding.pushToTalkButton.setOnClickListener {
-            // Required for accessibility when touch handler calls performClick().
-        }
-
-        binding.pushToTalkButton.setOnTouchListener { _, event ->
-            handlePushToTalkTouch(event)
+            // Real-time listening is automatic after connection.
         }
 
         binding.sendMessageButton.setOnClickListener {
@@ -162,7 +159,8 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
         if (isCustomTopicSelected(presetTopic)) {
             if (customTopic.isBlank()) {
-                Toast.makeText(this, getString(R.string.toast_enter_custom_topic), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_enter_custom_topic), Toast.LENGTH_SHORT)
+                    .show()
                 return null
             }
             return customTopic
@@ -191,49 +189,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
         appendTranscriptLine("user", message)
         binding.messageInput.text?.clear()
-    }
-
-    private fun handlePushToTalkTouch(event: MotionEvent): Boolean {
-        return when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                if (!isSessionActive) {
-                    Toast.makeText(this, getString(R.string.toast_not_connected), Toast.LENGTH_SHORT).show()
-                    true
-                } else {
-                    val started = coachClient.startPushToTalk()
-                    if (!started) {
-                        Toast.makeText(this, getString(R.string.toast_hold_to_talk_failed), Toast.LENGTH_SHORT).show()
-                    } else {
-                        isPushToTalkActive = true
-                        binding.pushToTalkButton.text = getString(R.string.release_to_send)
-                    }
-                    true
-                }
-            }
-
-            MotionEvent.ACTION_UP -> {
-                releasePushToTalkIfNeeded(createResponse = true)
-                binding.pushToTalkButton.performClick()
-                true
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                releasePushToTalkIfNeeded(createResponse = false)
-                true
-            }
-
-            else -> false
-        }
-    }
-
-    private fun releasePushToTalkIfNeeded(createResponse: Boolean) {
-        if (!isPushToTalkActive) {
-            return
-        }
-
-        isPushToTalkActive = false
-        coachClient.stopPushToTalk(createResponse)
-        binding.pushToTalkButton.text = getString(R.string.hold_to_talk)
     }
 
     private fun startSession(apiKey: String, instructions: String) {
@@ -284,16 +239,19 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
             .setNegativeButton(getString(R.string.settings_cancel), null)
             .setNeutralButton(getString(R.string.settings_clear)) { _, _ ->
                 appPrefs.edit { remove(KEY_USER_API_KEY) }
-                Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT)
+                    .show()
             }
             .setPositiveButton(getString(R.string.settings_save)) { _, _ ->
                 val value = input.text?.toString().orEmpty().trim()
                 if (value.isBlank()) {
                     appPrefs.edit { remove(KEY_USER_API_KEY) }
-                    Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_api_key_cleared), Toast.LENGTH_SHORT)
+                        .show()
                 } else {
                     appPrefs.edit { putString(KEY_USER_API_KEY, value) }
-                    Toast.makeText(this, getString(R.string.toast_api_key_saved), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_api_key_saved), Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
             .show()
@@ -321,7 +279,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun renderConnectingState() {
-        releasePushToTalkIfNeeded(createResponse = false)
         isSessionActive = false
         binding.connectButton.isEnabled = false
         binding.disconnectButton.isEnabled = true
@@ -330,7 +287,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun renderDisconnectedState() {
-        releasePushToTalkIfNeeded(createResponse = false)
         isSessionActive = false
         binding.connectButton.isEnabled = true
         binding.disconnectButton.isEnabled = false
@@ -340,9 +296,11 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     private fun updateMessageComposerState() {
         binding.messageInput.isEnabled = isSessionActive
-        binding.pushToTalkButton.isEnabled = isSessionActive
-        if (!isSessionActive) {
-            binding.pushToTalkButton.text = getString(R.string.hold_to_talk)
+        binding.pushToTalkButton.isEnabled = false
+        binding.pushToTalkButton.text = if (isSessionActive) {
+            AUTO_LISTENING_ACTIVE_LABEL
+        } else {
+            AUTO_LISTENING_IDLE_LABEL
         }
 
         val hasInputText = binding.messageInput.text.toString().trim().isNotEmpty()
@@ -354,14 +312,10 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
             binding.statusText.text = status
 
             val normalized = status.lowercase(Locale.US)
-            val isConnecting = normalized.contains("connecting") || status.contains("连接中")
-            val isDisconnected =
-                normalized.contains("disconnected") || status.contains("已断开") || status.contains("空闲")
+            val isConnecting =
+                normalized.contains("connecting") || normalized.contains("configuring")
+            val isDisconnected = normalized.contains("disconnected")
             isSessionActive = !isConnecting && !isDisconnected
-
-            if (!isSessionActive) {
-                releasePushToTalkIfNeeded(createResponse = false)
-            }
 
             binding.connectButton.isEnabled = !isSessionActive && !isConnecting
             binding.disconnectButton.isEnabled = isSessionActive || isConnecting
@@ -383,7 +337,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     override fun onError(message: String) {
         runOnUiThread {
-            releasePushToTalkIfNeeded(createResponse = false)
             appendSystemLine(getString(R.string.system_error_prefix) + message)
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             renderDisconnectedState()
@@ -414,7 +367,6 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
-        releasePushToTalkIfNeeded(createResponse = false)
         coachClient.release()
         super.onDestroy()
     }
@@ -422,6 +374,7 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     companion object {
         private const val PREFS_NAME = "spoken_settings"
         private const val KEY_USER_API_KEY = "user_api_key"
+        private const val AUTO_LISTENING_ACTIVE_LABEL = "Auto listening (real-time)"
+        private const val AUTO_LISTENING_IDLE_LABEL = "Connect to start auto listening"
     }
 }
-
