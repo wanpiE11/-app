@@ -28,12 +28,18 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     private val coachClient: RealtimeCoachClient by lazy { RealtimeCoachClient(this) }
     private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val appPrefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
+    private val transcriptHistory = StringBuilder()
 
     private var pendingInstructions: String? = null
     private var pendingApiKey: String? = null
     private var isSessionActive = false
     private lateinit var topicOptions: List<String>
     private lateinit var customTopicOption: String
+    private var liveUserTranscriptPreview: String? = null
+    private var liveUserTranscriptPreviewAt: Date? = null
+    private var committedUserPreviewStart: Int? = null
+    private var committedUserPreviewLength: Int? = null
+    private var committedUserPreviewAt: Date? = null
 
     private val microphonePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -331,7 +337,9 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
 
     override fun onUserSpeechRecognized(text: String) {
         runOnUiThread {
-            binding.lastSpeechText.text = text.trim()
+            val recognizedText = text.trim()
+            binding.lastSpeechText.text = recognizedText
+            updateLiveUserTranscriptPreview(recognizedText)
         }
     }
 
@@ -344,24 +352,123 @@ class MainActivity : AppCompatActivity(), RealtimeCoachClient.Listener {
     }
 
     private fun appendTranscriptLine(role: String, text: String) {
-        val speaker = when (role.lowercase(Locale.US)) {
-            "user" -> getString(R.string.speaker_you)
-            "assistant" -> getString(R.string.speaker_coach)
-            else -> role
+        val trimmedText = text.trim()
+        if (trimmedText.isBlank()) {
+            return
         }
-        val line = "${timeFormatter.format(Date())} $speaker: ${text.trim()}\n"
-        binding.transcriptLog.append(line)
+
+        if (role.equals("user", ignoreCase = true)) {
+            if (replaceCommittedUserPreview(trimmedText)) {
+                renderTranscriptLog()
+                return
+            }
+
+            val timestamp = liveUserTranscriptPreviewAt ?: Date()
+            clearLiveUserTranscriptPreview()
+            transcriptHistory.append(formatTranscriptLine(role, trimmedText, timestamp))
+            renderTranscriptLog()
+            return
+        }
+
+        commitLiveUserTranscriptPreview()
+        transcriptHistory.append(formatTranscriptLine(role, trimmedText, Date()))
+        renderTranscriptLog()
+    }
+
+    private fun appendSystemLine(text: String) {
+        val trimmedText = text.trim()
+        if (trimmedText.isBlank()) {
+            return
+        }
+
+        commitLiveUserTranscriptPreview()
+        transcriptHistory.append(formatTranscriptLine("system", trimmedText, Date()))
+        renderTranscriptLog()
+    }
+
+    private fun updateLiveUserTranscriptPreview(text: String) {
+        if (text.isBlank()) {
+            return
+        }
+
+        if (liveUserTranscriptPreview == null) {
+            clearCommittedUserPreview()
+            liveUserTranscriptPreviewAt = Date()
+        }
+        liveUserTranscriptPreview = text
+        renderTranscriptLog()
+    }
+
+    private fun clearLiveUserTranscriptPreview() {
+        liveUserTranscriptPreview = null
+        liveUserTranscriptPreviewAt = null
+    }
+
+    private fun commitLiveUserTranscriptPreview() {
+        val previewText = liveUserTranscriptPreview?.trim().orEmpty()
+        if (previewText.isBlank()) {
+            return
+        }
+
+        val timestamp = liveUserTranscriptPreviewAt ?: Date()
+        val previewLine = formatTranscriptLine("user", previewText, timestamp)
+        committedUserPreviewStart = transcriptHistory.length
+        committedUserPreviewLength = previewLine.length
+        committedUserPreviewAt = timestamp
+        transcriptHistory.append(previewLine)
+        clearLiveUserTranscriptPreview()
+    }
+
+    private fun replaceCommittedUserPreview(finalText: String): Boolean {
+        val start = committedUserPreviewStart ?: return false
+        val length = committedUserPreviewLength ?: return false
+        val timestamp = committedUserPreviewAt ?: Date()
+        if (start < 0 || start + length > transcriptHistory.length) {
+            clearCommittedUserPreview()
+            return false
+        }
+
+        val finalLine = formatTranscriptLine("user", finalText, timestamp)
+        transcriptHistory.replace(start, start + length, finalLine)
+        clearCommittedUserPreview()
+        return true
+    }
+
+    private fun clearCommittedUserPreview() {
+        committedUserPreviewStart = null
+        committedUserPreviewLength = null
+        committedUserPreviewAt = null
+    }
+
+    private fun renderTranscriptLog() {
+        binding.transcriptLog.text = buildString {
+            append(transcriptHistory)
+
+            val previewText = liveUserTranscriptPreview
+            if (!previewText.isNullOrBlank()) {
+                append(
+                    formatTranscriptLine(
+                        role = "user",
+                        text = previewText,
+                        timestamp = liveUserTranscriptPreviewAt ?: Date()
+                    )
+                )
+            }
+        }
+
         binding.logScroll.post {
             binding.logScroll.fullScroll(View.FOCUS_DOWN)
         }
     }
 
-    private fun appendSystemLine(text: String) {
-        val line = "${timeFormatter.format(Date())} ${getString(R.string.speaker_system)}: $text\n"
-        binding.transcriptLog.append(line)
-        binding.logScroll.post {
-            binding.logScroll.fullScroll(View.FOCUS_DOWN)
+    private fun formatTranscriptLine(role: String, text: String, timestamp: Date): String {
+        val speaker = when (role.lowercase(Locale.US)) {
+            "user" -> getString(R.string.speaker_you)
+            "assistant" -> getString(R.string.speaker_coach)
+            "system" -> getString(R.string.speaker_system)
+            else -> role
         }
+        return "${timeFormatter.format(timestamp)} $speaker: $text\n"
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
